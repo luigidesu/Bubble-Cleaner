@@ -27,6 +27,8 @@ Or skip the install and pick the file with **File > Scripts > Browse...**
 
 That's it. The paint goes on its own layer called **Cleaning**, so the original page is never changed.
 
+Note: Once it's installed, you can make an action to run it, I personally have one mapped to F3 so every time i click that it runs the script.
+
 ### Other ways to select
 
 **Rectangular Marquee.** For bubbles the wand can't grab cleanly. The box only has to cover the text, it fills the whole bubble anyway.
@@ -67,6 +69,7 @@ Save the file and run it again, no need to restart Photoshop.
 **`"colour"`**: pink stays pink, cyan stays cyan. Slower than the others, a few seconds per color. On big pages with big lettering, wand at a tolerance of 15: lower than that, the wand doesn't get between the letters and the text block is left as one big hole, which the script won't paint over (that's what keeps it off the art). JPEG noise does the same, so clean noisy pages first.
 
 ![MODE set to colour, yellow, pink, red, white and cyan bubbles each filled with their own color](docs/gifs/6-colour.gif)
+Due to the GIF compression this image might look a little funky but the colors won't get ever touched or changed while using the script.
 
 ## If something looks off
 
