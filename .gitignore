@@ -1,0 +1,10 @@
+tests/
+old/
+*.psd
+*.jpg
+.claude/
+Thumbs.db
+desktop.ini
+NOTES.md
+docs/NOTES.md
+docs/*.png
