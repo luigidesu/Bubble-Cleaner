@@ -9,6 +9,8 @@ Made to replace the current bubble cleaing actions going around.
 
 WAY faster than the current actions, doesn't get any slower on big documents or heavy layered ones. Takes under a second in any page on my T480, to it's probably way faster on your machine
 
+![Bubble Cleaner Script vs the White Bubbles action: the script stays around 0.6 to 1 second on every page, the action climbs to 7.4 seconds on a 13-layer spread](docs/speed.png)
+
 ## Installation
 
 1. Place `Bubble Cleaner v1.0 [Plastic Tears].jsx` in Photoshop's Scripts folder:
