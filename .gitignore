@@ -9,3 +9,5 @@ NOTES.md
 docs/NOTES.md
 docs/*.png
 !docs/speed.png
+Test/
+CLAUDE.md

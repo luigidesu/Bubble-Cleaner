@@ -7,13 +7,13 @@ Made to replace the current bubble cleaing actions going around.
 
 ![Bubble Cleaner in Photoshop: magic wand at tolerance 10, shift-click the bubbles, File > Scripts > Bubble Cleaner [Plastic Tears]](docs/gifs/1-magic-wand.gif)
 
-WAY faster than the current actions, doesn't get any slower on big documents or heavy layered ones. Takes under a second in any page on my T480, to it's probably way faster on your machine
+WAY faster than the current actions, doesn't get any slower on big documents or heavy layered ones. Takes about half a second in any page on my T480, so it's probably way faster on your machine
 
-![Bubble Cleaner Script vs the White Bubbles action: the script stays around 0.6 to 1 second on every page, the action climbs to 7.4 seconds on a 13-layer spread](docs/speed.png)
+![Bubble Cleaner Script vs the White Bubbles action: the script stays around half a second on every page, the action climbs to 6.8 seconds on a 13-layer spread](docs/speed.png)
 
 ## Installation
 
-1. Place `Bubble Cleaner v1.0 [Plastic Tears].jsx` in Photoshop's Scripts folder:
+1. Place `Bubble Cleaner [Plastic Tears].jsx` in Photoshop's Scripts folder:
    - **PC:** `C:\Program Files\Adobe\Adobe Photoshop <version>\Presets\Scripts\`
    - **Mac:** `/Applications/Adobe Photoshop <version>/Presets/Scripts/`
 2. Restart Photoshop.
@@ -45,18 +45,20 @@ You can mix them too, wand some bubbles and box the rest, then run it once.
 
 ## White, black or colored bubbles
 
-By default it paints **white**. To change it, open `Bubble Cleaner v1.0 [Plastic Tears].jsx` with Notepad and change this line near the top:
+By default it's on `"colour"`: every bubble gets painted in its own color, so white bubbles come out white, black ones black and colored ones keep their color. To change it, open `Bubble Cleaner [Plastic Tears].jsx` with Notepad and change this line near the top:
 
 ```
-var MODE = "white";
+var MODE = "colour";
 ```
+
+If you only ever clean white bubbles, set it to `"white"`. It's the fastest one, specially when you select with a box or the lasso.
 
 | Write | And it paints |
 |---|---|
 | `"white"` | white |
 | `"black"` | black |
 | `"black and white"` | white bubbles white, black bubbles black |
-| `"colour"` | each bubble in its own color (for colored pages) |
+| `"colour"` | each bubble in its own color, or its own gray on grayscale pages (you can also write `"grayscale"`, same thing) |
 
 Save the file and run it again, no need to restart Photoshop.
 
@@ -68,7 +70,7 @@ Save the file and run it again, no need to restart Photoshop.
 
 ![MODE set to black and white, white and black bubbles selected together and each filled with the right color](docs/gifs/5-black-and-white.gif)
 
-**`"colour"`**: pink stays pink, cyan stays cyan. Slower than the others, a few seconds per color. On big pages with big lettering, wand at a tolerance of 15: lower than that, the wand doesn't get between the letters and the text block is left as one big hole, which the script won't paint over (that's what keeps it off the art). JPEG noise does the same, so clean noisy pages first.
+**`"colour"`**: pink stays pink, cyan stays cyan. Slower than the others when you select several colors at once, about a second per color. On big pages with big lettering, wand at a tolerance of 15: lower than that, the wand doesn't get between the letters and the text block is left as one big hole, which the script won't paint over (that's what keeps it off the art). JPEG noise does the same, so clean noisy pages first.
 
 ![MODE set to colour, yellow, pink, red, white and cyan bubbles each filled with their own color](docs/gifs/6-colour.gif)
 Due to the GIF compression this image might look a little funky but the colors won't get ever touched or changed while using the script.
@@ -76,6 +78,10 @@ Due to the GIF compression this image might look a little funky but the colors w
 ## If something looks off
 
 Below that line there are a few more settings, each one explained as "if you see this, change this". Most people never need them.
+
+## Changelog
+
+What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
 
 ## Feedback
 

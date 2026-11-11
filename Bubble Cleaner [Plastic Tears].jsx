@@ -4,7 +4,7 @@
 <enableinfo>true</enableinfo>
 <category>Plastic Tears</category>
 <about>
-Bubble Cleaner v1.0 by Plastic Tears
+Bubble Cleaner v1.1 by Plastic Tears
 
 https://plastictears.com/
 </about>
@@ -12,7 +12,7 @@ https://plastictears.com/
 */
 
 
-// Bubble Cleaner v1.0 [Plastic Tears]
+// Bubble Cleaner v1.1 [Plastic Tears]
 //
 // Paints over the text inside speech bubbles.
 // Select the bubbles (magic wand, marquee, lasso, whatever you like), then run it.
@@ -26,7 +26,7 @@ https://plastictears.com/
 //   "white"            pure white
 //   "black"            pure black
 //   "black and white"  white bubbles white, black bubbles black
-//   "colour"           each bubble keeps its own color (for colored pages)
+//   "colour"           each bubble keeps its own color, or its own gray (for colored or gray pages)
 var MODE = "colour";
 
 // The layer it paints on. It uses the first one of these it finds,
@@ -85,6 +85,8 @@ function play(name, id, d) {
     catch (e) { throw new Error("Step " + LQ + name + RQ + " failed.\n\n" + e.message); }
 }
 
+var grayPage = false;       // the page is Grayscale, so fills are grays
+
 // same fill as the White/Black Bubbles actions
 function fillWith(which) {
     var d = D();
@@ -99,11 +101,16 @@ function fillColour(c) {
     if (isPureWhite(c)) return fillWith("Wht ");
     if (isPureBlack(c)) return fillWith("Blck");
     var d = D(), col = D();
-    col.putDouble(cTID("Rd  "), c[0]);
-    col.putDouble(cTID("Grn "), c[1]);
-    col.putDouble(cTID("Bl  "), c[2]);
     d.putEnumerated(cTID("Usng"), cTID("FlCn"), cTID("Clr "));
-    d.putObject(cTID("Clr "), cTID("RGBC"), col);
+    if (grayPage) {
+        col.putDouble(cTID("Gry "), (255 - c[0]) / 255 * 100);
+        d.putObject(cTID("Clr "), cTID("Grsc"), col);
+    } else {
+        col.putDouble(cTID("Rd  "), c[0]);
+        col.putDouble(cTID("Grn "), c[1]);
+        col.putDouble(cTID("Bl  "), c[2]);
+        d.putObject(cTID("Clr "), cTID("RGBC"), col);
+    }
     d.putUnitDouble(cTID("Opct"), cTID("#Prc"), 100);
     d.putEnumerated(cTID("Md  "), cTID("BlnM"), cTID("Nrml"));
     play("Fill (sampled colour)", "fill", d);
@@ -176,12 +183,17 @@ function selBoundsPx(doc) {
             Math.round(s.getUnitDoubleValue(cTID("Rght"))), Math.round(s.getUnitDoubleValue(cTID("Btom")))];
 }
 
-function pageSizePx(doc) {
+// reads one thing about the document (asking for everything at once is slow)
+function docValue(key) {
     var r = new ActionReference();
+    r.putProperty(cTID("Prpr"), sTID(key));
     r.putEnumerated(cTID("Dcmn"), cTID("Ordn"), cTID("Trgt"));
-    var d = executeActionGet(r), k = doc.resolution / 72;
-    return [Math.round(d.getUnitDoubleValue(sTID("width")) * k),
-            Math.round(d.getUnitDoubleValue(sTID("height")) * k)];
+    return executeActionGet(r).getUnitDoubleValue(sTID(key));
+}
+
+function pageSizePx() {
+    var k = docValue("resolution") / 72;
+    return [Math.round(docValue("width") * k), Math.round(docValue("height") * k)];
 }
 
 
@@ -192,6 +204,8 @@ function pageSizePx(doc) {
 var chanDirty  = false;     // an alpha channel is active
 var chanActive = null;      // which one
 var compShown  = false;     // the color channels are visible too
+var savedChans = [], savedNames = [];                                // channels made by storeNew
+var savedTag   = "Bubble Cleaner " + (new Date().getTime() % 100000) + "-";
 
 function compositeActive(doc) {
     try {
@@ -243,13 +257,42 @@ function dropActive(doc, c) {
     if (wasActive) { chanDirty = false; chanActive = null; compShown = false; }
 }
 
-// Select > Save Selection
+// deletes the temporary channels, the saved ones all in one go
+function dropAll(doc, list) {
+    var names = [], rest = [], i, k;
+    for (i = 0; i < list.length; i++) {
+        for (k = savedChans.length - 1; k >= 0 && savedChans[k] !== list[i]; k--) {}
+        if (k >= 0) names.push(savedNames[k]); else rest.push(list[i]);
+    }
+    if (names.length > 1) {
+        try {
+            var d = D(), l = new ActionList(), r;
+            for (i = 0; i < names.length; i++) {
+                r = new ActionReference();
+                r.putName(cTID("Chnl"), names[i]);
+                l.putReference(r);
+            }
+            d.putList(cTID("null"), l);
+            executeAction(sTID("delete"), d, DialogModes.NO);
+        } catch (e) { rest = list; }
+    } else {
+        rest = list;
+    }
+    for (i = rest.length - 1; i >= 0; i--) {
+        try { rest[i].remove(); } catch (e) {}
+    }
+}
+
+// Select > Save Selection, under a name of its own so it can be found again
 function storeNew(doc) {
-    var d = D(), r = new ActionReference();
+    var d = D(), r = new ActionReference(), name = savedTag + (savedNames.length + 1);
     r.putProperty(cTID("Chnl"), sTID("selection"));
     d.putReference(cTID("null"), r);
+    d.putString(cTID("Nm  "), name);
     play("Save selection", "duplicate", d);
-    return doc.channels[doc.channels.length - 1];
+    var c = doc.channels[doc.channels.length - 1];
+    savedChans.push(c); savedNames.push(name);
+    return c;
 }
 
 
@@ -277,10 +320,11 @@ function outsidePatch(doc, W, H) {
 }
 
 // Turns the selection into the area to paint: the bubble plus the text holes inside it.
-// Same steps as the White Bubbles action.
-function buildMask(doc, W, H, holeLimit, trim) {
-    var mask = activeCopy(doc);
+// Same steps as the White Bubbles action. own is a channel that already holds the selection.
+function buildMask(doc, W, H, holeLimit, trim, own) {
+    var mask = own || activeCopy(doc);
     try {
+        if (own) useChannel(doc, own);
         if (holeLimit > 0) {
             var box = bboxRect(doc, W, H, 2 * holeLimit + trim + 8);
             inverse();
@@ -303,22 +347,23 @@ function buildMask(doc, W, H, holeLimit, trim) {
                           + "relative to the bubble, try lowering it.");
         }
     } finally {
-        dropActive(doc, mask);
+        if (!own) dropActive(doc, mask);
     }
 }
 
 // throws away bits of the selection thinner than px, keeps the rest whole
-function openSelection(doc, px) {
-    var stored = activeCopy(doc);
+function openSelection(doc, px, own) {
+    var stored = own || activeCopy(doc);
     var ok = false;
     try {
+        if (own) useChannel(doc, own);
         try { contract(px, false); } catch (e) { return false; }
         if (!hasSelection(doc)) return false;
         grow(FLOOD_TOL);
         ok = true;
     } finally {
         if (ok) { try { doc.selection.load(stored, SelectionType.INTERSECT); } catch (e) {} }
-        dropActive(doc, stored);
+        if (!own) dropActive(doc, stored);
     }
     return hasSelection(doc);
 }
@@ -329,9 +374,21 @@ function hardenChannel(doc, chan) {
     catch (e) {}
 }
 
+// true when a saved channel has nothing left in it
+function channelEmpty(doc, chan) {
+    try {
+        if (hasSelection(doc)) return false;
+        var h = chan.histogram;
+        for (var v = 128; v < 256; v++) if (h[v]) return false;
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
 // selects one bubble out of the ones saved in chan, false when none are left
 function peelComponent(doc, chan) {
-    deselect(); useChannel(doc, chan); thresholdBinary();
+    useChannel(doc, chan);
     doc.selection.load(chan, SelectionType.REPLACE);
     if (!hasSelection(doc)) return false;
     var b = selBoundsPx(doc);
@@ -352,14 +409,7 @@ function peelComponent(doc, chan) {
 function dropEnclosed(doc, groups) {
     var kept = [], g, h;
 
-    // skip pairs that are nowhere near each other
-    var box = [];
-    for (g = 0; g < groups.length; g++) {
-        box[g] = null;
-        if (groups[g].dead || !groups[g].mask) continue;
-        doc.selection.load(groups[g].mask, SelectionType.REPLACE);
-        if (hasSelection(doc)) box[g] = selBoundsPx(doc);
-    }
+    // pairs that are nowhere near each other get skipped
     function touches(a, b) {
         return a && b && a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
     }
@@ -369,7 +419,7 @@ function dropEnclosed(doc, groups) {
         var alive = true;
         for (h = 0; h < groups.length && alive; h++) {
             if (h === g || groups[h].dead || !groups[h].mask) continue;
-            if (!touches(box[g], box[h])) continue;
+            if (!touches(groups[g].box, groups[h].box)) continue;
             doc.selection.load(groups[g].mask, SelectionType.REPLACE);
             doc.selection.load(groups[h].mask, SelectionType.DIMINISH);
             if (!hasSelection(doc)) { alive = false; break; }
@@ -395,17 +445,25 @@ function medianOf(h) {
     return 255;
 }
 
-// the selection's color, and how much of it is light
+// the selection's color, how much of it is light, and if there's more than one color in it
 function readSelection(doc) {
     readable(doc);
-    var chans = doc.componentChannels, m = [], c, h, v, tot = 0, light = 0;
+    var chans = doc.componentChannels, m = [], c, h, v, med, n, far, tot = 0, light = 0, mixed = false;
     for (c = 0; c < chans.length; c++) {
         h = chans[c].histogram;
-        m.push(medianOf(h));
-        for (v = 0; v < 256; v++) { tot += h[v]; if (v >= TONE_SPLIT) light += h[v]; }
+        med = medianOf(h);
+        m.push(med);
+        n = 0; far = 0;
+        for (v = 0; v < 256; v++) {
+            n += h[v];
+            if (v >= TONE_SPLIT) light += h[v];
+            if (Math.abs(v - med) > COLOUR_TOL) far += h[v];
+        }
+        tot += n;
+        if (n && far / n > TONE_MIX) mixed = true;
     }
     if (m.length === 1) m = [m[0], m[0], m[0]];
-    return { colour: m, lightFraction: tot ? (light / tot) : 1 };
+    return { colour: m, lightFraction: tot ? (light / tot) : 1, mixed: mixed };
 }
 
 function sampleColour(doc) { return readSelection(doc).colour; }
@@ -526,7 +584,7 @@ function findTarget(doc, needNormal) {
 
 function canonicalMode() {
     var m = String(MODE).toLowerCase().replace(/[^a-z]/g, "");
-    if (m === "color") m = "colour";
+    if (m === "color" || m === "grayscale" || m === "greyscale" || m === "gray" || m === "grey") m = "colour";
     if (m === "blackandwhite" || m === "blackwhite" || m === "bw"
      || m === "auto") m = "bw";
     if (m === "white" || m === "black" || m === "bw" || m === "colour") return m;
@@ -560,9 +618,12 @@ function buildGroupMasks(ctx, groups) {
     var doc = ctx.doc;
     for (var g = 0; g < groups.length; g++) {
         doc.selection.load(groups[g].wand, SelectionType.REPLACE);
-        try { buildMask(doc, ctx.W, ctx.H, ctx.limit, ctx.trim); }
+        // the last one makes its own copy, deleting it puts the normal channels back for free
+        var own = (g < groups.length - 1) ? groups[g].wand : null;
+        try { buildMask(doc, ctx.W, ctx.H, ctx.limit, ctx.trim, own); }
         catch (e) { groups[g].dead = true; continue; }
         if (!hasSelection(doc)) { groups[g].dead = true; continue; }
+        groups[g].box  = selBoundsPx(doc);
         groups[g].mask = ctx.keep(storeNew(doc));
     }
 }
@@ -578,16 +639,15 @@ function groupsByColour(ctx) {
 
     // clear out the noise first so it doesn't count as bubbles
     doc.selection.load(remainder, SelectionType.REPLACE);
-    if (openSelection(doc, Math.max(2, Math.round(ctx.limit / SPECK_OPEN)))) {
+    if (openSelection(doc, Math.max(2, Math.round(ctx.limit / SPECK_OPEN)), remainder)) {
         doc.selection.store(remainder, SelectionType.REPLACE);
-        hardenChannel(doc, remainder);
     }
 
     var retried = false, made = 0;
     for (var it = 0; made < MAX_BUBBLES && it < MAX_BUBBLES * 20; it++) {
         if (!peelComponent(doc, remainder)) {
-            // one more try before giving up
-            if (retried) break;
+            // one more try before giving up, unless there's really nothing left
+            if (retried || channelEmpty(doc, remainder)) break;
             retried = true;
             hardenChannel(doc, remainder);
             if (!peelComponent(doc, remainder)) break;
@@ -676,6 +736,7 @@ function collectGroups(ctx) {
         info = readSelection(ctx.doc);
         if      (info.lightFraction >= 1 - TONE_MIX) { single = true; light = true;  }
         else if (info.lightFraction <= TONE_MIX)     { single = true; light = false; }
+        if (ctx.sampled) single = !info.mixed;
     }
     if (single)                return groupsSingle(ctx, light, info);
     if (ctx.mode === "colour") return groupsByColour(ctx);
@@ -733,10 +794,11 @@ function main() {
     // in case an alpha channel was selected when you ran it
     if (!compositeActive(doc)) { chanDirty = true; restoreChannels(doc); }
 
-    // colour mode only makes sense on RGB pages
-    if (mode === "colour" && doc.mode !== DocumentMode.RGB) mode = "bw";
+    // colour mode only makes sense on RGB and Grayscale pages
+    grayPage = (doc.mode === DocumentMode.GRAYSCALE);
+    if (mode === "colour" && doc.mode !== DocumentMode.RGB && !grayPage) mode = "bw";
 
-    var size = pageSizePx(doc), H = size[1], scale = H / REF_HEIGHT;
+    var size = pageSizePx(), H = size[1], scale = H / REF_HEIGHT;
     var forced = (mode === "white" || mode === "black");
     var ctx = {
         doc: doc, W: size[0], H: H, mode: mode, forced: forced,
@@ -750,10 +812,7 @@ function main() {
     try {
         paintGroups(ctx, collectGroups(ctx));
     } finally {
-        // delete the temporary channels
-        for (var i = ctx.scratch.length - 1; i >= 0; i--) {
-            try { ctx.scratch[i].remove(); } catch (e) {}
-        }
+        dropAll(doc, ctx.scratch);
     }
 }
 
